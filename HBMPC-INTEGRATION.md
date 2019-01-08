@@ -89,7 +89,7 @@ make hbmpc-tests-with-deps
 Must be in project root (not in `unit-test` dir).
 
 ```bash
-cd $GOPATH/src/github.com/hyperledger/fabric 
+cd $GOPATH/src/github.com/hyperledger/fabric
 make unit-tests
 ```
 
