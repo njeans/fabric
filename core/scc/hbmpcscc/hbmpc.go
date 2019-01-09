@@ -38,30 +38,29 @@ func New(aclProvider aclmgmt.ACLProvider) *MpcEngine {
 	// and when it signs it. Essentially the mpc will act like a "pre-ordering" service
 	//
 	// TODO Replace "dummy" code below with appropriate code.
-	cmd := exec.Command("python3", "-m", "honeybadgermpc.polynomial")
+	//cmd := exec.Command("python3", "-m", "honeybadgermpc.polynomial")
 	fmt.Println("--------------------------------------------------------------------\n")
 	fmt.Println("net.LookupHost peer0.org1.example.com")
-	addrs, err := net.LookupHost("peer0.org1.example.com")
+	peer0org1, err := net.LookupHost("peer0.org1.example.com")
 	if err != nil {
 		log.Fatalf("net.LookupHost peer0.org1.example.com failed with %s\n", err)
 	}
-	fmt.Println(addrs)
-	fmt.Println(addrs[0])
+	fmt.Println(peer0org1)
+	fmt.Println(peer0org1[0])
 	fmt.Println("\n--------------------------------------------------------------------")
-	//cmd := exec.Command("nc", "-l", "-p", "9000")
-	out, errmsg := cmd.CombinedOutput()
+	ncservecmd := exec.Command("nc", "-l", "-p", "9000")
+	errmsg := ncservecmd.Start()
 	if errmsg != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", errmsg)
+		log.Fatalf("ncservecmd.Start() failed with %s\n", errmsg)
 	}
-	fmt.Printf("HoneyBadgerMPC ... :\n%s\n", string(out))
+	//fmt.Printf("HoneyBadgerMPC ... :\n%s\n", string(out))
 	//fmt.Printf("netcat cmd output, `nc -l -p 9000`:\n%s\n", string(out))
 
-	//cmd := exec.Command("echo hhhhhhhhhhhhhhhhhhhhhhhi", "|", "nc", "peer0.org1.example.com", "9000")
-	//out, errmsg := cmd.CombinedOutput()
-	//if errmsg != nil {
-	//	log.Fatalf("cmd.Run() failed with %s\n", errmsg)
-	//}
-	//fmt.Printf("netcat cmd output, `nc -l -p 9000`:\n%s\n", string(out))
+	echocmd := exec.Command("echo", "hhhhhhhhhhhhhhhhhhhhhhhi", "|", "nc", peer0org1[0], "9000")
+	echocmderrmsg := echocmd.Start()
+	if echocmderrmsg != nil {
+		log.Fatalf("echocmd.Run() failed with %s\n", echocmderrmsg)
+	}
 	// -XXX --- HoneyBadgerMPC ----
 
 	return &MpcEngine{
