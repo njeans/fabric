@@ -8,12 +8,13 @@ package hbmpcscc
 
 import (
 	// XXX for HBMPC
+	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"os/exec"
-
-	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/hyperledger/fabric/common/flogging"
 
@@ -24,6 +25,53 @@ import (
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"github.com/hyperledger/fabric/protos/utils"
 )
+
+func backgroundTask(host string, port string) {
+	l, err := net.Listen("tcp", host+":"+port)
+	if err != nil {
+		fmt.Println("Error listening:", err.Error())
+	}
+	defer l.Close()
+	fmt.Println("Listening on " + host + ":" + port)
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting: ", err.Error())
+		}
+		go handleRequest(conn)
+	}
+}
+
+func handleRequest(conn net.Conn) {
+	fmt.Println("In handle request")
+	buf := make([]byte, 1024)
+	reqLen, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("Error reading:", err.Error())
+	} else {
+		fmt.Println("Received : ", buf, reqLen)
+	}
+
+	conn.Write([]byte("Message received."))
+	conn.Close()
+}
+
+func send(server string, port string) {
+
+	// connect to this socket
+	conn, err := net.Dial("tcp", server+":"+port)
+	if err != nil {
+		fmt.Println("error connecting:", err.Error())
+	} else {
+		fmt.Print("Text to send: ")
+		text := "hello"
+		// send to socket
+		fmt.Fprintf(conn, text+"\n")
+		// listen for reply
+		message, _ := bufio.NewReader(conn).ReadString('\n')
+		fmt.Print("Message from server: " + message)
+	}
+}
 
 // New returns an instance of HBMPCSCC.
 // Typically this is called once per peer.
@@ -48,19 +96,36 @@ func New(aclProvider aclmgmt.ACLProvider) *MpcEngine {
 	fmt.Println(peer0org1)
 	fmt.Println(peer0org1[0])
 	fmt.Println("\n--------------------------------------------------------------------")
+	fmt.Println("--------------------------------------------------------------------\n")
+	fmt.Println("net.LookupHost peer1.org1.example.com")
+	peer1org1, err := net.LookupHost("peer1.org1.example.com")
+	if err != nil {
+		log.Fatalf("net.LookupHost peer1.org1.example.com failed with %s\n", err)
+	}
+	fmt.Println(peer1org1)
+	fmt.Println(peer1org1[0])
+	fmt.Println("\n--------------------------------------------------------------------")
+	go backgroundTask("localhost", "9000")
 	ncservecmd := exec.Command("nc", "-l", "-p", "9000")
 	errmsg := ncservecmd.Start()
 	if errmsg != nil {
-		log.Fatalf("ncservecmd.Start() failed with %s\n", errmsg)
+		fmt.Printf("ncservecmd.Start() failed with %s\n", errmsg)
 	}
 	//fmt.Printf("HoneyBadgerMPC ... :\n%s\n", string(out))
 	//fmt.Printf("netcat cmd output, `nc -l -p 9000`:\n%s\n", string(out))
 
-	echocmd := exec.Command("echo", "hhhhhhhhhhhhhhhhhhhhhhhi", "|", "nc", peer0org1[0], "9000")
+	time.Sleep(1000 * time.Millisecond)
+	fmt.Println("Sending Message ")
+	send(peer0org1[0], "9000")
+	echocmd := exec.Command("echo", "hi", "|", "nc", peer0org1[0], "9000")
 	echocmderrmsg := echocmd.Start()
 	if echocmderrmsg != nil {
-		log.Fatalf("echocmd.Run() failed with %s\n", echocmderrmsg)
+		fmt.Printf("echocmd.Run() failed with %s\n", echocmderrmsg)
 	}
+	/*
+		for {
+		}
+	*/
 	// -XXX --- HoneyBadgerMPC ----
 
 	return &MpcEngine{
