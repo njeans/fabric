@@ -41,8 +41,8 @@ func New(aclProvider aclmgmt.ACLProvider) *MpcEngine {
 	cmd := exec.Command("python3", "-m", "honeybadgermpc.polynomial")
 	fmt.Println("--------------------------------------------------------------------\n")
 	fmt.Println("net.LookupHost peer0.org1.example.com")
-	addrs, err = net.LookupHost("peer0.org1.example.com")
-	if errmsg != nil {
+	addrs, err := net.LookupHost("peer0.org1.example.com")
+	if err != nil {
 		log.Fatalf("net.LookupHost peer0.org1.example.com failed with %s\n", err)
 	}
 	fmt.Println(addrs)
