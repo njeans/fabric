@@ -10,7 +10,7 @@ ADD  payload/sampleconfig.tar.bz2 $FABRIC_CFG_PATH
 
 ##############################################################################
 # BEGIN: Python HoneyBadgerMPC dependencies                                  #
-RUN apt update && apt install -y git python3-pip libgmp-dev
+RUN apt-get update && apt-get install -y git python3-pip libgmp-dev libmpc-dev libmpfr-dev
 # TODO change branch to hyperbadgermpc
 RUN pip3 install -U pip
 RUN pip3 install git+https://github.com/initc3/HoneyBadgerMPC.git@dev
