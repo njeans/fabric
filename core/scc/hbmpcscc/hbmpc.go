@@ -73,6 +73,18 @@ func send(server string, port string) {
 	}
 }
 
+func GetOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
+}
+
 // New returns an instance of HBMPCSCC.
 // Typically this is called once per peer.
 func New(aclProvider aclmgmt.ACLProvider) *MpcEngine {
@@ -105,8 +117,8 @@ func New(aclProvider aclmgmt.ACLProvider) *MpcEngine {
 	fmt.Println(peer1org1)
 	fmt.Println(peer1org1[0])
 	fmt.Println("\n--------------------------------------------------------------------")
-	go backgroundTask("localhost", "9000")
-	ncservecmd := exec.Command("nc", "-l", "-p", "9000")
+	go backgroundTask(GetOutboundIP().String(), "9001")
+	ncservecmd := exec.Command("nc", "-l", "-p", "9001")
 	errmsg := ncservecmd.Start()
 	if errmsg != nil {
 		fmt.Printf("ncservecmd.Start() failed with %s\n", errmsg)
@@ -116,8 +128,9 @@ func New(aclProvider aclmgmt.ACLProvider) *MpcEngine {
 
 	time.Sleep(1000 * time.Millisecond)
 	fmt.Println("Sending Message ")
-	send(peer0org1[0], "9000")
-	echocmd := exec.Command("echo", "hi", "|", "nc", peer0org1[0], "9000")
+	send(peer0org1[0], "9001")
+	time.Sleep(5000 * time.Millisecond)
+	echocmd := exec.Command("echo", "hi", "|", "nc", peer0org1[0], "9001")
 	echocmderrmsg := echocmd.Start()
 	if echocmderrmsg != nil {
 		fmt.Printf("echocmd.Run() failed with %s\n", echocmderrmsg)
