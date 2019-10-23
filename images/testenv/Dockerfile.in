@@ -25,3 +25,10 @@ RUN bash /tmp/install-softhsm2.sh && rm -f install-softhsm2.sh
 
 # typically, this is mapped to a developer's dev environment
 WORKDIR /opt/gopath/src/github.com/hyperledger/fabric
+
+# Python HoneyBadgerMPC dependencies
+RUN apt-get update && apt-get install -y netcat     
+RUN apt-get update && apt-get install -y git python3-pip libgmp-dev libmpc-dev libmpfr-dev
+
+# TODO change branch to hyperbadgermpc
+RUN pip3 install git+https://github.com/initc3/HoneyBadgerMPC.git@dev

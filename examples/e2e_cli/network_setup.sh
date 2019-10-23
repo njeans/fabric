@@ -23,7 +23,7 @@ function printHelp () {
 
 function validateArgs () {
 	if [ -z "${UP_DOWN}" ]; then
-		echo "Option up / down / restart not mentioned"
+		echo "Option up / down / restart / update not mentioned"
 		printHelp
 		exit 1
 	fi
@@ -41,6 +41,19 @@ function clearContainers () {
                 docker rm -f $CONTAINER_IDS
         fi
 }
+
+function graceClear () {
+        docker ps -aq > a
+        docker ps --filter="ancestor=hyperledger/fabric-peer" -aq  > b
+        CONTAINER_IDS=$(grep -F -x -v -f b a)
+        if [ -z "$CONTAINER_IDS" -o "$CONTAINER_IDS" = " " ]; then
+                echo "---- No containers available for deletion ----"
+        else
+                docker rm -f $CONTAINER_IDS
+        fi
+}
+
+
 
 function removeUnwantedImages() {
         DOCKER_IMAGE_IDS=$(docker images | grep "dev\|none\|test-vp\|peer[0-9]-" | awk '{print $3}')
@@ -72,6 +85,38 @@ function networkUp () {
     docker logs -f cli
 }
 
+function networkUpdate () {
+    # docker-compose -f $COMPOSE_FILE -f $COMPOSE_FILE_COUCH down
+    rm -rf channel-artifacts/*.block channel-artifacts/*.tx crypto-config
+    source generateArtifacts.sh $CH_NAME
+
+    if [ "${IF_COUCHDB}" == "couchdb" ]; then
+      CHANNEL_NAME=$CH_NAME TIMEOUT=$CLI_TIMEOUT docker-compose -f $COMPOSE_FILE -f $COMPOSE_FILE_COUCH up --no-recreate -d 2>&1
+    else
+      CHANNEL_NAME=$CH_NAME TIMEOUT=$CLI_TIMEOUT docker-compose -f $COMPOSE_FILE up --no-recreate -d 2>&1
+    fi
+    if [ $? -ne 0 ]; then
+	echo "ERROR !!!! Unable to pull the images "
+	exit 1
+    fi
+    docker logs -f cli
+
+}
+
+function networkGraceDown() {
+    # docker-compose -f $COMPOSE_FILE -f $COMPOSE_FILE_COUCH down
+
+    #Cleanup the chaincode containers
+    graceClear
+
+    #Cleanup images
+    removeUnwantedImages
+
+    # remove orderer block and other channel configuration transactions and certs
+    rm -rf channel-artifacts/*.block channel-artifacts/*.tx crypto-config
+
+}
+
 function networkDown () {
     docker-compose -f $COMPOSE_FILE -f $COMPOSE_FILE_COUCH down
 
@@ -95,6 +140,11 @@ elif [ "${UP_DOWN}" == "down" ]; then ## Clear the network
 elif [ "${UP_DOWN}" == "restart" ]; then ## Restart the network
 	networkDown
 	networkUp
+elif [ "${UP_DOWN}" == "update" ]; then ## Restart the network without killing container
+    softClean
+    networkUpdate
+elif [ "${UP_DOWN}" == "gracedown" ]; then ## Restart the network without killing container
+    networkGraceDown
 else
 	printHelp
 	exit 1
