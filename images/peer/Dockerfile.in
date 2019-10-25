@@ -7,51 +7,117 @@ ENV FABRIC_CFG_PATH /etc/hyperledger/fabric
 RUN mkdir -p /var/hyperledger/production $FABRIC_CFG_PATH
 COPY payload/peer /usr/local/bin
 ADD  payload/sampleconfig.tar.bz2 $FABRIC_CFG_PATH
-
-##############################################################################
-# temporary
-RUN apt-get update && apt-get install -y netcat     
-
-# BEGIN: Python HoneyBadgerMPC dependencies                                  #
-ENV PYTHONUNBUFFERED=1
-
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2018-10-24
-
-ENV PATH /root/.cargo/bin:$PATH
-
-
-RUN apt-get update && apt-get install -y git locales python3-pip libffi-dev libgmp-dev libmpc-dev libmpfr-dev libntl-dev libflint-dev
-
-WORKDIR /usr/src/HoneyBadgerMPC
-
-RUN pip3 install --upgrade pip
-
-COPY . /usr/src/HoneyBadgerMPC
-
-RUN pip3 install pairing
-
-RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    locale-gen
-ENV LANG en_US.UTF-8  
-ENV LANGUAGE en_US:en  
-ENV LC_ALL en_US.UTF-8 
-
-
+# BEGIN: Python HoneyBadgerMPC dependencies
+# Install apt dependencies
+# Put apt dependencies here that are needed by all build paths
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    iproute2 \
+    libflint-dev \
+    libgmp-dev \
+    libffi-dev \
+    libmpc-dev \
+    libmpfr-dev \
+    libssl-dev \
+    openssl \
+    sudo \
+    bison \
+    cmake \
+    flex \
+    wget
+# Install Python3.7
+WORKDIR /
+RUN wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz
+RUN tar xzf Python-3.7.4.tgz
+WORKDIR /Python-3.7.4
+RUN ./configure --enable-optimizations
+RUN make -j 1
+RUN make altinstall
+# Re-install pip3
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+RUN python3.7 get-pip.py --force-reinstall
+# Allows for log messages to be immediately dumped to the
+# stream instead of being buffered.
+ENV PYTHONUNBUFFERED 1
+# Path variables needed for Charm
+ENV LIBRARY_PATH /usr/local/lib
+ENV LD_LIBRARY_PATH /usr/local/lib
+ENV LIBRARY_INCLUDE_PATH /usr/local/include
+# Setup virtualenv
+ENV PYTHON_LIBRARY_PATH /opt/venv
+ENV PATH ${PYTHON_LIBRARY_PATH}/bin:${PATH}
+RUN pip3 install virtualenv
+ENV PYTHON_LIBRARY_PATH /opt/venv
+ENV PATH ${PYTHON_LIBRARY_PATH}/bin:${PATH}
+RUN python3.7 -m virtualenv ${PYTHON_LIBRARY_PATH}
+RUN virtualenv -p /usr/local/bin/python3.7 ${PYTHON_LIBRARY_PATH}
+# python dependencies
+RUN pip3 install \
+    cffi \
+    Cython \
+    gmpy2 \
+    psutil \
+    pycrypto \
+    pyzmq \
+    zfec
 # This is needed otherwise the build for the power sum solver will fail.
 # This is a known issue in the version of libflint-dev in apt.
 # https://github.com/wbhart/flint2/issues/217
 # This has been fixed if we pull the latest code from the repo. However, we want
 # to avoid compiling the lib from the source since it adds 20 minutes to the build.
-# TODO change branch to hyperbadgermpc
 RUN sed -i '30c #include "flint/flint.h"' /usr/include/flint/flintxx/flint_classes.h
-
-ARG BUILD
-
-# RUN pip3 install --no-cache-dir -e git+https://github.com/initc3/HoneyBadgerMPC.git@dev 
-RUN pip3 install git+https://github.com/initc3/HoneyBadgerMPC.git@dev
-
-
-# END: Python HoneyBadgerMPC dependencies                                    #
-##############################################################################
-
+WORKDIR /
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2018-10-24
+ENV PATH "/root/.cargo/bin:${PATH}"
+# # Install NTL
+# WORKDIR /
+# RUN curl -so - https://www.shoup.net/ntl/ntl-11.3.2.tar.gz | tar xzvf -
+# WORKDIR /ntl-11.3.2/src
+# RUN ./configure CXXFLAGS="-g -O2 -fPIC -march=native -pthread -std=c++11"
+# RUN make
+# RUN make install
+#
+# # Install better pairing
+# # Creates dependencies in /usr/local/include/pbc and /usr/local/lib
+# WORKDIR /
+# RUN curl -so - https://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz | tar xzvf -
+# WORKDIR /pbc-0.5.14/
+# RUN ./configure
+# RUN make
+# RUN make install
+#
+# # Install charm
+# # Creates /charm/dist/Charm_Crypto...x86_64.egg, which gets copied into the venv
+# # /opt/venv/lib/python3.7/site-packages/Charm_crypto...x86_64.egg
+# WORKDIR /
+# RUN git clone https://github.com/JHUISI/charm.git
+# WORKDIR /charm
+# RUN git reset --hard be9587ccdd4d61c591fb50728ebf2a4690a2064f
+# RUN ./configure.sh
+# RUN make install
+# RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+#    locale-gen
+# ENV LANG en_US.UTF-8
+# ENV LANGUAGE en_US:en
+# ENV LC_ALL en_US.UTF-8
+# # Install solidity
+# RUN git clone --recursive https://github.com/ethereum/solidity.git
+# WORKDIR /solidity/
+# RUN git checkout v0.4.24 # Old version necessary to work???
+# RUN git submodule update --init --recursive
+# RUN ./scripts/install_deps.sh
+# RUN mkdir build/
+# WORKDIR /solidity/build/
+# RUN cmake ..
+# RUN make install
+# WORKDIR /
+# clone and install HoneyBadgerMPC
+WORKDIR /usr/src
+RUN git clone https://github.com/initc3/HoneyBadgerMPC.git
+RUN pip3 install HoneyBadgerMPC
+# install pairing
+WORKDIR /usr/src/HoneyBadgerMPC
+RUN pip3 install pairing/
 CMD ["peer","node","start"]
