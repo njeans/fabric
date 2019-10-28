@@ -48,6 +48,7 @@ BASE_VERSION = 1.4.0
 PREV_VERSION = 1.3.0
 CHAINTOOL_RELEASE=1.1.1
 BASEIMAGE_RELEASE=0.4.14
+IN_DOCKER=false
 
 # Allow to build as a submodule setting the main project to
 # the PROJECT_NAME env variable, for example,
@@ -232,11 +233,15 @@ $(BUILD_DIR)/docker/bin/%: $(PROJECT_FILES)
 	$(eval TARGET = ${patsubst $(BUILD_DIR)/docker/bin/%,%,${@}})
 	@echo "Building $@"
 	@mkdir -p $(BUILD_DIR)/docker/bin $(BUILD_DIR)/docker/$(TARGET)/pkg
+ifeq ($(IN_DOCKER),true)
+	@go install -tags "$(GO_TAGS)" -ldflags "$(DOCKER_GO_LDFLAGS)" $(pkgmap.$(@F))
+else
 	@$(DRUN) \
 		-v $(abspath $(BUILD_DIR)/docker/bin):/opt/gopath/bin \
 		-v $(abspath $(BUILD_DIR)/docker/$(TARGET)/pkg):/opt/gopath/pkg \
 		$(BASE_DOCKER_NS)/fabric-baseimage:$(BASE_DOCKER_TAG) \
 		go install -tags "$(GO_TAGS)" -ldflags "$(DOCKER_GO_LDFLAGS)" $(pkgmap.$(@F))
+endif
 	@touch $@
 
 $(BUILD_DIR)/bin:
