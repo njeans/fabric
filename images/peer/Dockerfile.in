@@ -69,7 +69,7 @@ RUN pip3 install \
 # to avoid compiling the lib from the source since it adds 20 minutes to the build.
 RUN sed -i '30c #include "flint/flint.h"' /usr/include/flint/flintxx/flint_classes.h
 WORKDIR /
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2018-10-24
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 ENV PATH "/root/.cargo/bin:${PATH}"
 # # Install NTL
 # WORKDIR /
@@ -113,11 +113,11 @@ ENV PATH "/root/.cargo/bin:${PATH}"
 # RUN cmake ..
 # RUN make install
 # WORKDIR /
-# # clone and install HoneyBadgerMPC
-# WORKDIR /usr/src
-# RUN git clone https://github.com/initc3/HoneyBadgerMPC.git
-# RUN pip3 install HoneyBadgerMPC
-# # install pairing
-# WORKDIR /usr/src/HoneyBadgerMPC
-# RUN pip3 install pairing/
+# clone and install HoneyBadgerMPC
+WORKDIR /usr/src
+RUN git clone https://github.com/initc3/HoneyBadgerMPC.git
+RUN pip3 install HoneyBadgerMPC
+# install pairing
+WORKDIR /usr/src/HoneyBadgerMPC
+RUN pip3 install pairing/
 CMD ["peer","node","start"]
